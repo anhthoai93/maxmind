@@ -7,3 +7,13 @@ services:
       - 5005:5000
     volumes:
       - .:/app
+  postgres:
+    image: 'postgres:latest'
+    environment:
+      POSTGRES_USER: andy  # Set your desired username here
+      POSTGRES_PASSWORD: andy  # Set your desired password here
+    ports:
+      - 5432:5432
+    volumes:
+      - ./docker/db-data/:/var/lib/postgresql/data/
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
