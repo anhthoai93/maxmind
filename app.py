@@ -1,9 +1,20 @@
 from flask import Flask
+from flask_smorest import Api
+from resources.store import blp as StoreBlueprint
+from resources.item import blp as itemBlueprint
+
+
 app = Flask(__name__)
 
-@app.route('/')
-def hello_world():  # put application's code here
-    return 'Hello World!'
+app.config["PROPAGATE_EXCEPTIONS"] = True
+app.config["API_TITLE"] = "Stores REST API"
+app.config["API_VERSION"] = "v1"
+app.config["OPENAPI_VERSION"] = "3.0.3"
+app.config["OPENAPI_URL_PREFIX"] = "/"
+app.config["OPENAPI_SWAGGER_UI_PATH"] = "/swagger-ui"
+app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
 
-if __name__ == '__main__':
-    app.run()
+api = Api(app)
+
+api.register_blueprint(StoreBlueprint)
+api.register_blueprint(itemBlueprint)
