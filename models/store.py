@@ -8,3 +8,4 @@ class StoreModel(db.Model):
     name = db.Column(db.String(80), unique=True, nullable=False)
     items = db.relationship('ItemModel', back_populates='store', lazy="dynamic", cascade="all, delete, delete")
     tags = db.relationship('TagModel', back_populates='store', lazy="dynamic")
+    is_owner = db.Column(db.Boolean(), nullable=True, default=False)
