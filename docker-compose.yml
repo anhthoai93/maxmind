@@ -7,6 +7,10 @@ services:
       - 5005:5000
     volumes:
       - .:/app
+    depends_on:
+      - postgres
+    env_file:
+      - ./.env
   postgres:
     image: 'postgres:latest'
     environment:

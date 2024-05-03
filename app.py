@@ -1,3 +1,5 @@
+import os
+
 from flask import Flask, jsonify
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
@@ -10,7 +12,7 @@ from resources.user import blp as UserBlueprint
 from blocklist import BLOCKLIST
 
 
-def create_app(db_url=None):
+def create_app():
     app = Flask(__name__)
 
     app.config["PROPAGATE_EXCEPTIONS"] = True
@@ -21,8 +23,9 @@ def create_app(db_url=None):
     app.config["OPENAPI_SWAGGER_UI_PATH"] = "/swagger-ui"
     app.config["OPENAPI_SWAGGER_UI_URL"] = "https://cdn.jsdelivr.net/npm/swagger-ui-dist/"
     # app.config["SQLALCHEMY_DATABASE_URI"] = db_url or "sqlite:///data.db"
-    app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://andy:andy@postgres:5432/andy"
+    # app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://andy:andy@postgres:5432/andy"
     # app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql://andy:andy@localhost:5432/andy"
+    app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv("DATABASE_URL")
     app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
     db.init_app(app)
     migrate = Migrate(app, db)
