@@ -9,3 +9,6 @@ Flask-JWT-Extended
 flask-migrate
 gunicorn
 psycopg2
+requests
+redis
+rq

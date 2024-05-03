@@ -1,23 +1,33 @@
-version: '3'
-
 services:
-  web:
+  web-app:
     build: .
     ports:
       - 5005:5000
     volumes:
       - .:/app
-    depends_on:
-      - postgres
+    command: flask run --host 0.0.0.0
+#    depends_on:
+#      - postgres
     env_file:
       - ./.env
-  postgres:
-    image: 'postgres:latest'
-    environment:
-      POSTGRES_USER: andy  # Set your desired username here
-      POSTGRES_PASSWORD: andy  # Set your desired password here
+  web-rq:
+    build: .
     ports:
-      - 5432:5432
+      - 5006:80
     volumes:
-      - ./docker/db-data/:/var/lib/postgresql/data/
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - .:/app
+    command: rq worker -u rediss://red-coqhg2kf7o1s73ej4tn0:bBjSPgGlyRYicic9ZIc4JMKEQAyG0fo1@singapore-redis.render.com:6379 emails
+    #    depends_on:
+    #      - postgres
+    env_file:
+      - ./.env
+#  postgres:
+#    image: 'postgres:latest'
+#    environment:
+#      POSTGRES_USER: andy  # Set your desired username here
+#      POSTGRES_PASSWORD: andy  # Set your desired password here
+#    ports:
+#      - 5432:5432
+#    volumes:
+#      - ./docker/db-data/:/var/lib/postgresql/data/
+#      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql
