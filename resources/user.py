@@ -1,7 +1,5 @@
-import os
+from hmac import compare_digest
 
-import redis
-from flask.views import MethodView
 from flask_jwt_extended import (
     jwt_required,
     get_jwt_identity,
@@ -9,85 +7,71 @@ from flask_jwt_extended import (
     create_refresh_token,
     get_jwt
 )
-from flask_smorest import Blueprint, abort
-from passlib.hash import pbkdf2_sha256
-from rq import Queue
-from sqlalchemy import or_
+from flask_restful import Resource, reqparse
+from flask_smorest import Blueprint
 
 from blocklist import BLOCKLIST
-from db import db
 from models import UserModel
-from schemas import UserSchema, UserRegisterSchema
-from tasks import send_user_registration_email
 
 blp = Blueprint("Users", "users", description="Operations on users")
 
+_user_parser = reqparse.RequestParser()
+_user_parser.add_argument("username", type=str, required=True, help="This field cannot be blank")
+_user_parser.add_argument("password", type=str, required=True, help="This field cannot be blank")
+_user_parser.add_argument("email", type=str, required=False)
 
-connection = redis.from_url(os.environ.get("REDIS_URL"))
-queue = Queue("emails", connection=connection)
-@blp.route("/register")
-class UserRegister(MethodView):
 
-    @blp.arguments(UserRegisterSchema)
-    def post(self, user_data):
-        print(user_data)
-        if UserModel.query.filter(or_(
-                UserModel.username == user_data["username"],
-                UserModel.email == user_data["email"])
-        ).first():
-            abort(409, message="A user with that username already exists.")
-        user = UserModel(
-            username=user_data["username"],
-            password=pbkdf2_sha256.hash(user_data["password"]),
-            email=user_data["email"],
-        )
-        db.session.add(user)
-        db.session.commit()
-        queue.enqueue(send_user_registration_email, user.email, user.username)
+class UserRegister(Resource):
+    def post(self):
+        data = _user_parser.parse_args()
+        if UserModel.find_by_username(data["username"]):
+            return {"message": "A user with that username already exists."}, 400
+
+        user = UserModel(**data)
+        user.save_to_db()
         return {"message": "User created successfully."}, 201
 
 
-@blp.route("/login")
-class UserLogin(MethodView):
-    @blp.arguments(UserSchema)
-    def post(self, user_data):
-        user = UserModel.query.filter_by(username=user_data["username"]).first()
-        if user and pbkdf2_sha256.verify(user_data["password"], user.password):
+class UserLogin(Resource):
+    def post(self):
+        data = _user_parser.parse_args()
+        user = UserModel.find_by_username(data["username"])
+        if user and compare_digest(user.password, data["password"]):
             access_token = create_access_token(identity=user.id, fresh=True)
             refresh_token = create_refresh_token(identity=user.id)
             return {"access_token": access_token, "refresh_token": refresh_token}, 200
-        abort(401, message="Invalid credentials.")
+        return {"message": "Invalid credentials."}, 401
 
 
-@blp.route("/user/<int:user_id>")
-class User(MethodView):
-    @blp.response(200, UserSchema)
-    def get(self, user_id):
-        user = UserModel.query.get_or_404(user_id)
-        return user
+class User(Resource):
+    @classmethod
+    def get(cls, user_id: int):
+        user = UserModel.find_by_id(user_id)
+        if not user:
+            return {"message": "User not found."}, 404
+        return user.json(), 200
 
-    def delete(self, user_id):
-        user = UserModel.query.get_or_404(user_id)
-        db.session.delete(user)
-        db.session.commit()
+    @classmethod
+    def delete(cls, user_id):
+        user = UserModel.find_by_id(user_id)
+        if not user:
+            return {"message": "User not found."}, 404
+        user.delete_from_db()
         return {"message": "User deleted."}, 200
 
 
-@blp.route("/logout")
-class UserLogout(MethodView):
+class UserLogout(Resource):
     @jwt_required()
     def post(self):
         jti = get_jwt()["jti"]
+        user_id = get_jwt_identity()
         BLOCKLIST.add(jti)
-        return {"message": "Successfully logged out"}, 200
+        return {"message": "User <id={}> successfully logged out.".format(user_id)}, 200
 
 
-@blp.route("/refresh")
-class RefreshToken(MethodView):
+class RefreshToken(Resource):
     @jwt_required(fresh=True)
     def post(self):
         current_user = get_jwt_identity()
         new_token = create_access_token(identity=current_user, fresh=False)
-        jti = get_jwt()["jti"]
-        BLOCKLIST.add(jti)
         return {"access_token": new_token}, 200

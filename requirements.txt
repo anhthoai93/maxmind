@@ -12,3 +12,4 @@ psycopg2
 requests
 redis
 rq
+Flask-RESTful
