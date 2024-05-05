@@ -6,30 +6,35 @@ from models import ItemModel
 
 blp = Blueprint("Items", "items", description="Operations on items")
 
+BLANK_ERROR = "'{}' cannot be blank."
+NAME_ALREADY_EXISTS = "An item with name '{}' already exists."
+ERROR_INSERTING = "An error occurred while inserting the item."
+ITEM_NOT_FOUND = "Item not found."
+ITEM_DELETED = "Item deleted."
 
 class Item(Resource):
     parser = reqparse.RequestParser()
     parser.add_argument(
-        "price", type=float, required=True, help="This field cannot be left blank!"
+        "price", type=float, required=True, help=BLANK_ERROR.format("price")
     )
     parser.add_argument(
-        "store_id", type=int, required=True, help="Every item needs a store_id."
+        "store_id", type=int, required=True, help=BLANK_ERROR.format("store_id")
     )
     parser.add_argument(
         "description", type=str, required=False
     )
     @jwt_required()
-    def get(self, name):
+    def get(self, name: str):
         item = ItemModel.find_by_name(name)
         if item:
             return item.json(), 200
         return {"message": "Item not found."}, 404
 
     @jwt_required(fresh=True)
-    def post(self, name):
+    def post(self, name: str):
         if ItemModel.find_by_name(name):
             return (
-                {"message": "An item with name '{}' already exists.".format(name)},
+                {"message": NAME_ALREADY_EXISTS.format(name)},
                 400,
             )
         data = Item.parser.parse_args()
@@ -37,21 +42,21 @@ class Item(Resource):
         try:
             item.save_to_db()
         except:
-            return {"message": "An error occurred inserting the item."}, 500
+            return {"message": ERROR_INSERTING}, 500
         return item.json(), 201
 
     @jwt_required()
-    def delete(self, name):
+    def delete(self, name: str):
         claims = get_jwt()
         if not claims["is_admin"]:
             return {"message": "Admin privilege required."}, 401
         item = ItemModel.find_by_name(name)
         if item:
             item.delete_from_db()
-            return {"message": "Item deleted."}, 200
-        return {"message": "Item not found."}, 404
+            return {"message": ITEM_DELETED}, 200
+        return {"message": ITEM_NOT_FOUND}, 404
 
-    def put(self, name):
+    def put(self, name: str):
         data = Item.parser.parse_args()
         item = ItemModel.find_by_name(name)
         if item:
